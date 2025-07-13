@@ -6,9 +6,11 @@ This module defines all the API endpoints for the real estate scraper.
 
 import json
 import logging
+import os
 from typing import Dict, Any, List
 from datetime import datetime
 from flask import Blueprint, request, jsonify, send_file
+from flask_jwt_extended import jwt_required
 from io import BytesIO
 import pandas as pd
 
@@ -28,6 +30,9 @@ listings_bp = Blueprint('listings', __name__)
 users_bp = Blueprint('users', __name__)
 alerts_bp = Blueprint('alerts', __name__)
 scraping_bp = Blueprint('scraping', __name__)
+auth_bp = Blueprint('auth', __name__)
+payments_bp = Blueprint('payments', __name__)
+trends_bp = Blueprint('trends', __name__)
 
 
 # Listings Routes
@@ -485,4 +490,305 @@ def get_scraping_logs():
         
     except Exception as e:
         logger.error(f"Error getting scraping logs: {e}")
-        return jsonify({'error': 'Internal server error'}), 500 
+        return jsonify({'error': 'Internal server error'}), 500
+
+
+# Authentication Routes
+
+@auth_bp.route('/register', methods=['POST'])
+def register():
+    """
+    Register a new user
+    
+    Request body:
+    {
+        "username": "john_doe",
+        "email": "john@example.com",
+        "password": "secure_password",
+        "name": "John Doe"
+    }
+    """
+    try:
+        from utils.auth_service import AuthService
+        
+        data = request.get_json()
+        if not data or not all(k in data for k in ['username', 'email', 'password', 'name']):
+            return jsonify({'error': 'All fields are required'}), 400
+        
+        auth_service = AuthService()
+        result = auth_service.register_user(
+            username=data['username'],
+            email=data['email'],
+            password=data['password'],
+            name=data['name']
+        )
+        
+        if result['success']:
+            return jsonify(result), 201
+        else:
+            return jsonify({'error': result['error']}), 400
+            
+    except Exception as e:
+        logger.error(f"Error registering user: {e}")
+        return jsonify({'error': 'Registration failed'}), 500
+
+
+@auth_bp.route('/login', methods=['POST'])
+def login():
+    """
+    User login
+    
+    Request body:
+    {
+        "username": "john_doe",
+        "password": "secure_password"
+    }
+    """
+    try:
+        from utils.auth_service import AuthService
+        
+        data = request.get_json()
+        if not data or not all(k in data for k in ['username', 'password']):
+            return jsonify({'error': 'Username and password are required'}), 400
+        
+        auth_service = AuthService()
+        result = auth_service.login_user(
+            username=data['username'],
+            password=data['password']
+        )
+        
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify({'error': result['error']}), 401
+            
+    except Exception as e:
+        logger.error(f"Error during login: {e}")
+        return jsonify({'error': 'Login failed'}), 500
+
+
+@auth_bp.route('/profile', methods=['GET'])
+@jwt_required()
+def get_profile():
+    """Get current user profile"""
+    try:
+        from utils.auth_service import AuthService
+        from flask_jwt_extended import get_jwt_identity
+        
+        auth_service = AuthService()
+        user = auth_service.get_current_user()
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        return jsonify({
+            'user': user.to_dict(),
+            'usage_stats': auth_service.get_user_usage_stats(user.id)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting profile: {e}")
+        return jsonify({'error': 'Failed to get profile'}), 500
+
+
+# Payment Routes
+
+@payments_bp.route('/plans', methods=['GET'])
+def get_plans():
+    """Get available subscription plans"""
+    try:
+        from utils.payment_service import PaymentService
+        
+        payment_service = PaymentService()
+        return jsonify(payment_service.get_subscription_plans())
+        
+    except Exception as e:
+        logger.error(f"Error getting plans: {e}")
+        return jsonify({'error': 'Failed to get plans'}), 500
+
+
+@payments_bp.route('/create-checkout', methods=['POST'])
+@jwt_required()
+def create_checkout():
+    """
+    Create Stripe checkout session
+    
+    Request body:
+    {
+        "plan": "pro",
+        "success_url": "https://example.com/success",
+        "cancel_url": "https://example.com/cancel"
+    }
+    """
+    try:
+        from utils.payment_service import PaymentService
+        from flask_jwt_extended import get_jwt_identity
+        
+        data = request.get_json()
+        if not data or 'plan' not in data:
+            return jsonify({'error': 'Plan is required'}), 400
+        
+        user_id = get_jwt_identity()
+        payment_service = PaymentService()
+        
+        result = payment_service.create_checkout_session(
+            user_id=user_id,
+            plan=data['plan'],
+            success_url=data.get('success_url', 'http://localhost:5000/success'),
+            cancel_url=data.get('cancel_url', 'http://localhost:5000/cancel')
+        )
+        
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify({'error': result['error']}), 400
+            
+    except Exception as e:
+        logger.error(f"Error creating checkout: {e}")
+        return jsonify({'error': 'Failed to create checkout'}), 500
+
+
+@payments_bp.route('/webhook', methods=['POST'])
+def stripe_webhook():
+    """Handle Stripe webhook events"""
+    try:
+        from utils.payment_service import PaymentService
+        
+        payload = request.data
+        sig_header = request.headers.get('Stripe-Signature')
+        webhook_secret = os.getenv('STRIPE_WEBHOOK_SECRET')
+        
+        if not webhook_secret:
+            return jsonify({'error': 'Webhook secret not configured'}), 500
+        
+        payment_service = PaymentService()
+        result = payment_service.handle_webhook(payload, sig_header, webhook_secret)
+        
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify({'error': result['error']}), 400
+            
+    except Exception as e:
+        logger.error(f"Error handling webhook: {e}")
+        return jsonify({'error': 'Webhook processing failed'}), 500
+
+
+@payments_bp.route('/cancel', methods=['POST'])
+@jwt_required()
+def cancel_subscription():
+    """Cancel user subscription"""
+    try:
+        from utils.payment_service import PaymentService
+        from flask_jwt_extended import get_jwt_identity
+        
+        user_id = get_jwt_identity()
+        payment_service = PaymentService()
+        
+        result = payment_service.cancel_subscription(user_id)
+        
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify({'error': result['error']}), 400
+            
+    except Exception as e:
+        logger.error(f"Error cancelling subscription: {e}")
+        return jsonify({'error': 'Failed to cancel subscription'}), 500
+
+
+# Trend Analysis Routes
+
+@trends_bp.route('/analysis', methods=['GET'])
+def get_trend_analysis():
+    """
+    Get price trend analysis
+    
+    Query parameters:
+    - location: Specific location to analyze
+    - days_back: Number of days to look back (default: 30)
+    """
+    try:
+        from utils.trend_analyzer import TrendAnalyzer
+        
+        location = request.args.get('location')
+        days_back = request.args.get('days_back', 30, type=int)
+        
+        analyzer = TrendAnalyzer()
+        trends = analyzer.calculate_price_trends(location=location, days_back=days_back)
+        
+        return jsonify({
+            'success': True,
+            'trends': trends,
+            'analysis_date': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting trend analysis: {e}")
+        return jsonify({'error': 'Failed to get trend analysis'}), 500
+
+
+@trends_bp.route('/deals', methods=['GET'])
+def get_deals():
+    """
+    Get current deals
+    
+    Query parameters:
+    - threshold: Deal threshold (default: 0.8 = 20% below average)
+    """
+    try:
+        from utils.trend_analyzer import TrendAnalyzer
+        
+        threshold = request.args.get('threshold', 0.8, type=float)
+        
+        analyzer = TrendAnalyzer()
+        deals = analyzer.identify_deals(deal_threshold=threshold)
+        
+        return jsonify({
+            'success': True,
+            'deals': deals,
+            'count': len(deals),
+            'threshold': threshold
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting deals: {e}")
+        return jsonify({'error': 'Failed to get deals'}), 500
+
+
+@trends_bp.route('/insights', methods=['GET'])
+def get_market_insights():
+    """Get comprehensive market insights"""
+    try:
+        from utils.trend_analyzer import TrendAnalyzer
+        
+        analyzer = TrendAnalyzer()
+        insights = analyzer.get_market_insights()
+        
+        return jsonify({
+            'success': True,
+            'insights': insights
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting market insights: {e}")
+        return jsonify({'error': 'Failed to get market insights'}), 500
+
+
+@trends_bp.route('/update-coordinates', methods=['POST'])
+def update_coordinates():
+    """Update listing coordinates for map integration"""
+    try:
+        from utils.trend_analyzer import TrendAnalyzer, VIETNAM_LOCATIONS
+        
+        analyzer = TrendAnalyzer()
+        analyzer.update_listing_coordinates(VIETNAM_LOCATIONS)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Updated coordinates for {len(VIETNAM_LOCATIONS)} locations'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error updating coordinates: {e}")
+        return jsonify({'error': 'Failed to update coordinates'}), 500 

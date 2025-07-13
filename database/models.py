@@ -33,6 +33,12 @@ class PropertyListing(Base):
     source = Column(String(50), nullable=False)
     raw_data = Column(Text)  # JSON string for additional data
     
+    # New fields for enhanced features
+    latitude = Column(Float)  # For map integration
+    longitude = Column(Float)  # For map integration
+    is_deal = Column(Boolean, default=False)  # Flag for deals under market average
+    market_average_price = Column(Float)  # Average price per m2 for the area
+    
     def __repr__(self):
         return f"<PropertyListing(id={self.id}, title='{self.title}', price={self.price})>"
     
@@ -52,7 +58,11 @@ class PropertyListing(Base):
             'bathrooms': self.bathrooms,
             'timestamp': self.timestamp.isoformat() if self.timestamp else None,
             'source': self.source,
-            'raw_data': json.loads(self.raw_data) if self.raw_data else {}
+            'raw_data': json.loads(self.raw_data) if self.raw_data else {},
+            'latitude': self.latitude,
+            'longitude': self.longitude,
+            'is_deal': self.is_deal,
+            'market_average_price': self.market_average_price
         }
 
 
@@ -64,6 +74,8 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     email = Column(String(200), unique=True, nullable=False)
     name = Column(String(100), nullable=False)
+    password_hash = Column(String(255), nullable=False)  # For authentication
+    username = Column(String(100), unique=True, nullable=False)  # For login
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     subscription_tier = Column(String(20), default='free')  # free, pro, enterprise
@@ -81,6 +93,7 @@ class User(Base):
             'id': self.id,
             'email': self.email,
             'name': self.name,
+            'username': self.username,
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'subscription_tier': self.subscription_tier,

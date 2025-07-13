@@ -10,7 +10,7 @@ from flask import Flask
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-from .routes import listings_bp, users_bp, alerts_bp, scraping_bp
+from .routes import listings_bp, users_bp, alerts_bp, scraping_bp, auth_bp, payments_bp, trends_bp
 
 # Load environment variables
 load_dotenv()
@@ -37,11 +37,19 @@ def create_app(config_name: str = None) -> Flask:
     # Enable CORS
     CORS(app, resources={r"/api/*": {"origins": "*"}})
     
+    # Initialize JWT
+    from flask_jwt_extended import JWTManager
+    app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY') or 'jwt-secret-key-change-in-production'
+    jwt = JWTManager(app)
+    
     # Register blueprints
     app.register_blueprint(listings_bp, url_prefix='/api/listings')
     app.register_blueprint(users_bp, url_prefix='/api/users')
     app.register_blueprint(alerts_bp, url_prefix='/api/alerts')
     app.register_blueprint(scraping_bp, url_prefix='/api/scraping')
+    app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    app.register_blueprint(payments_bp, url_prefix='/api/payments')
+    app.register_blueprint(trends_bp, url_prefix='/api/trends')
     
     # Register error handlers
     register_error_handlers(app)
@@ -64,6 +72,9 @@ def create_app(config_name: str = None) -> Flask:
                 'users': '/api/users',
                 'alerts': '/api/alerts',
                 'scraping': '/api/scraping',
+                'auth': '/api/auth',
+                'payments': '/api/payments',
+                'trends': '/api/trends',
                 'health': '/health'
             }
         }
