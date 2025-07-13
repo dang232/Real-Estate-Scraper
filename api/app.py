@@ -6,6 +6,7 @@ This module creates and configures the Flask application.
 
 import os
 import logging
+from typing import Optional
 from flask import Flask
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -16,7 +17,7 @@ from .routes import listings_bp, users_bp, alerts_bp, scraping_bp, auth_bp, paym
 load_dotenv()
 
 
-def create_app(config_name: str = None) -> Flask:
+def create_app(config_name: Optional[str] = None) -> Flask:
     """
     Create and configure the Flask application
     
@@ -82,7 +83,7 @@ def create_app(config_name: str = None) -> Flask:
     return app
 
 
-def get_config(config_name: str = None) -> object:
+def get_config(config_name: Optional[str] = None) -> object:
     """
     Get configuration object based on environment
     
@@ -176,7 +177,7 @@ def setup_logging(app: Flask):
         app.logger.info('Real Estate Scraper API startup')
     else:
         # Development logging
-        app.logger.setLevel(logging.DEBUG)
+        app.logger.setLevel(logging.DEBUG)  # type: ignore
 
 
 def register_error_handlers(app: Flask):

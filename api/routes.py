@@ -177,7 +177,7 @@ def export_listings():
             mimetype = 'text/csv'
             filename = f'listings_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
         else:  # excel
-            df.to_excel(buffer, index=False)
+            df.to_excel(buffer, index=False)  # type: ignore
             mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             filename = f'listings_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
         
@@ -326,7 +326,7 @@ def create_alert():
             'bedrooms': data.get('bedrooms')
         }
         
-        alert = db_manager.create_alert(user.id, alert_data)
+        alert = db_manager.create_alert(int(user.id), alert_data)  # type: ignore
         
         if not alert:
             return jsonify({'error': 'Failed to create alert'}), 500
@@ -352,7 +352,7 @@ def get_user_alerts(email: str):
         if not user:
             return jsonify({'error': 'User not found'}), 404
         
-        alerts = db_manager.get_user_alerts(user.id)
+        alerts = db_manager.get_user_alerts(int(user.id))  # type: ignore
         alerts_data = [alert.to_dict() for alert in alerts]
         
         return jsonify({'alerts': alerts_data})
@@ -583,7 +583,7 @@ def get_profile():
         
         return jsonify({
             'user': user.to_dict(),
-            'usage_stats': auth_service.get_user_usage_stats(user.id)
+            'usage_stats': auth_service.get_user_usage_stats(int(user.id))  # type: ignore
         })
         
     except Exception as e:
@@ -662,6 +662,8 @@ def stripe_webhook():
             return jsonify({'error': 'Webhook secret not configured'}), 500
         
         payment_service = PaymentService()
+        if not sig_header:
+            return jsonify({'error': 'Missing Stripe signature header'}), 400
         result = payment_service.handle_webhook(payload, sig_header, webhook_secret)
         
         if result['success']:

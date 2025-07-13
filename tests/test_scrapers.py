@@ -4,7 +4,7 @@ Tests for Scraper Modules
 This module contains tests for all scraper functionality.
 """
 
-import pytest
+import pytest  # type: ignore
 import asyncio
 from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime
@@ -13,6 +13,19 @@ from scraper.base_scraper import PropertyListing, BaseScraper
 from scraper.batdongsan_scraper import BatDongSanScraper
 from scraper.chotot_scraper import ChototScraper
 from scraper.scraper_manager import ScraperManager
+
+
+# Concrete implementation for testing BaseScraper
+class TestScraper(BaseScraper):
+    """Concrete implementation of BaseScraper for testing"""
+    
+    async def scrape_listings(self, max_pages: int = 10):
+        """Test implementation of scrape_listings"""
+        return []
+    
+    def parse_listing(self, listing_element):
+        """Test implementation of parse_listing"""
+        return None
 
 
 class TestPropertyListing:
@@ -52,7 +65,7 @@ class TestBaseScraper:
     
     def test_base_scraper_initialization(self):
         """Test BaseScraper initialization"""
-        scraper = BaseScraper("TestScraper", "https://example.com")
+        scraper = TestScraper("TestScraper", "https://example.com")
         
         assert scraper.name == "TestScraper"
         assert scraper.base_url == "https://example.com"
@@ -61,7 +74,7 @@ class TestBaseScraper:
     
     def test_clean_price(self):
         """Test price cleaning functionality"""
-        scraper = BaseScraper("TestScraper", "https://example.com")
+        scraper = TestScraper("TestScraper", "https://example.com")
         
         # Test billion format
         assert scraper.clean_price("2.5 tỷ") == 2500000000
@@ -80,7 +93,7 @@ class TestBaseScraper:
     
     def test_clean_area(self):
         """Test area cleaning functionality"""
-        scraper = BaseScraper("TestScraper", "https://example.com")
+        scraper = TestScraper("TestScraper", "https://example.com")
         
         # Test with m²
         assert scraper.clean_area("100m²") == 100.0
@@ -101,7 +114,7 @@ class TestBaseScraper:
     
     def test_calculate_price_per_m2(self):
         """Test price per m² calculation"""
-        scraper = BaseScraper("TestScraper", "https://example.com")
+        scraper = TestScraper("TestScraper", "https://example.com")
         
         # Normal calculation
         assert scraper.calculate_price_per_m2(1000000000, 100) == 10000000

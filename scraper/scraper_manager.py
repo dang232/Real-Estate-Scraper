@@ -90,8 +90,8 @@ class ScraperManager:
                 logger.error(f"Scraper {scraper_name} failed: {result}")
                 self.stats['failed_runs'] += 1
             else:
-                logger.info(f"Scraper {scraper_name} completed with {len(result)} listings")
-                all_listings.extend(result)
+                logger.info(f"Scraper {scraper_name} completed with {len(result)} listings")  # type: ignore
+                all_listings.extend(result)  # type: ignore
                 self.stats['successful_runs'] += 1
         
         # Update statistics

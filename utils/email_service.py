@@ -92,9 +92,9 @@ class EmailService:
             msg.attach(MIMEText(html_content, 'html'))
             
             # Send email
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+            with smtplib.SMTP(str(self.smtp_server), self.smtp_port) as server:
                 server.starttls()
-                server.login(self.smtp_username, self.smtp_password)
+                server.login(str(self.smtp_username), str(self.smtp_password))
                 server.send_message(msg)
             
             logger.info(f"Alert email sent to {user_email} for {len(matching_listings)} listings")
@@ -368,9 +368,9 @@ Real Estate Scraper Team
             msg.attach(MIMEText(text_content, 'plain'))
             msg.attach(MIMEText(html_content, 'html'))
             
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+            with smtplib.SMTP(str(self.smtp_server), self.smtp_port) as server:
                 server.starttls()
-                server.login(self.smtp_username, self.smtp_password)
+                server.login(str(self.smtp_username), str(self.smtp_password))
                 server.send_message(msg)
             
             logger.info(f"Welcome email sent to {user_email}")
@@ -392,9 +392,9 @@ Real Estate Scraper Team
             return False
         
         try:
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+            with smtplib.SMTP(str(self.smtp_server), self.smtp_port) as server:
                 server.starttls()
-                server.login(self.smtp_username, self.smtp_password)
+                server.login(str(self.smtp_username), str(self.smtp_password))
                 logger.info("Email configuration test successful")
                 return True
                 

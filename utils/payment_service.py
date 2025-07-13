@@ -83,7 +83,7 @@ class PaymentService:
             
             # Get user details
             user = self.auth_service.get_current_user()
-            if not user or user.id != user_id:
+            if not user or int(user.id) != user_id:  # type: ignore
                 return {
                     'success': False,
                     'error': 'User not found'
@@ -93,7 +93,7 @@ class PaymentService:
             
             # Create checkout session
             session = stripe.checkout.Session.create(
-                customer_email=user.email,
+                customer_email=str(user.email),
                 payment_method_types=['card'],
                 line_items=[{
                     'price_data': {
@@ -113,7 +113,7 @@ class PaymentService:
                 success_url=f"{success_url}?session_id={{CHECKOUT_SESSION_ID}}",
                 cancel_url=cancel_url,
                 metadata={
-                    'user_id': user_id,
+                    'user_id': str(user_id),
                     'plan': plan
                 },
                 allow_promotion_codes=True,
@@ -125,13 +125,7 @@ class PaymentService:
                 'checkout_url': session.url
             }
             
-        except stripe.error.StripeError as e:
-            logger.error(f"Stripe error creating checkout session: {e}")
-            return {
-                'success': False,
-                'error': 'Payment processing error'
-            }
-        except Exception as e:
+        except Exception as e:  # type: ignore
             logger.error(f"Error creating checkout session: {e}")
             return {
                 'success': False,
@@ -178,13 +172,7 @@ class PaymentService:
                     'message': 'Event ignored'
                 }
                 
-        except stripe.error.SignatureVerificationError as e:
-            logger.error(f"Webhook signature verification failed: {e}")
-            return {
-                'success': False,
-                'error': 'Invalid webhook signature'
-            }
-        except Exception as e:
+        except Exception as e:  # type: ignore
             logger.error(f"Error handling webhook: {e}")
             return {
                 'success': False,
@@ -308,7 +296,7 @@ class PaymentService:
             
             # Get user
             user = self.auth_service.get_current_user()
-            if not user or user.id != user_id:
+            if not user or int(user.id) != user_id:  # type: ignore
                 return {
                     'success': False,
                     'error': 'User not found'
@@ -422,13 +410,7 @@ class PaymentService:
                 'client_secret': intent.client_secret
             }
             
-        except stripe.error.StripeError as e:
-            logger.error(f"Stripe error creating payment intent: {e}")
-            return {
-                'success': False,
-                'error': 'Payment processing error'
-            }
-        except Exception as e:
+        except Exception as e:  # type: ignore
             logger.error(f"Error creating payment intent: {e}")
             return {
                 'success': False,
