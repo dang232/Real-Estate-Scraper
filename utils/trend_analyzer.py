@@ -84,8 +84,8 @@ class TrendAnalyzer:
                 group['days'] = (group['timestamp'] - group['timestamp'].min()).dt.days
                 
                 # Simple linear regression
-                X = group['days'].values.reshape(-1, 1)
-                y = group['price_per_m2'].values
+                X = np.array(group['days'].values).reshape(-1, 1)
+                y = np.array(group['price_per_m2'].values)
                 
                 # Add constant for intercept
                 X_with_const = np.column_stack([np.ones(len(X)), X])
@@ -99,7 +99,7 @@ class TrendAnalyzer:
                     # Calculate R-squared
                     y_pred = X_with_const @ beta
                     ss_res = np.sum((y - y_pred) ** 2)
-                    ss_tot = np.sum((y - np.mean(y)) ** 2)
+                    ss_tot = np.sum((y - np.mean(y)) ** 2)  # type: ignore
                     r_squared = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
                     
                     # Calculate average price for deal detection
@@ -171,8 +171,8 @@ class TrendAnalyzer:
                     
                     if price_ratio <= deal_threshold:
                         # Update listing with deal flag and market average
-                        listing.is_deal = True
-                        listing.market_average_price = avg_price
+                        listing.is_deal = True  # type: ignore
+                        listing.market_average_price = avg_price  # type: ignore
                         
                         deals.append({
                             'id': listing.id,
@@ -256,8 +256,8 @@ class TrendAnalyzer:
                 ).all()
                 
                 for listing in listings:
-                    listing.latitude = lat
-                    listing.longitude = lng
+                    listing.latitude = lat  # type: ignore
+                    listing.longitude = lng  # type: ignore
             
             session.commit()
             session.close()

@@ -130,7 +130,7 @@ class AuthService:
                 }
             
             # Check password
-            if not check_password_hash(user.password_hash, password):
+            if not check_password_hash(str(user.password_hash), password):
                 session.close()
                 return {
                     'success': False,
@@ -138,7 +138,7 @@ class AuthService:
                 }
             
             # Check if user is active
-            if not user.is_active:
+            if not bool(user.is_active):
                 session.close()
                 return {
                     'success': False,
@@ -159,7 +159,7 @@ class AuthService:
                     'email': user.email,
                     'name': user.name,
                     'subscription_tier': user.subscription_tier,
-                    'subscription_expires': user.subscription_expires.isoformat() if user.subscription_expires else None
+                    'subscription_expires': user.subscription_expires.isoformat() if isinstance(user.subscription_expires, datetime) else None
                 },
                 'access_token': access_token
             }
@@ -213,8 +213,8 @@ class AuthService:
                 session.close()
                 return False
             
-            user.subscription_tier = tier
-            user.subscription_expires = expires_at
+            user.subscription_tier = tier  # type: ignore
+            user.subscription_expires = expires_at  # type: ignore
             
             session.commit()
             session.close()
@@ -238,7 +238,8 @@ class AuthService:
             bool: Access granted
         """
         # Check if subscription has expired
-        if user.subscription_expires and user.subscription_expires < datetime.utcnow():
+        subscription_expires = user.subscription_expires
+        if subscription_expires is not None and isinstance(subscription_expires, datetime) and subscription_expires < datetime.utcnow():  # type: ignore
             return False
         
         # Feature access rules
@@ -303,16 +304,16 @@ class AuthService:
                 return {}
             
             # Get user's alerts
-            alerts = session.query(User).filter(User.id == user_id).first().alerts
+            alerts = user.alerts if hasattr(user, 'alerts') and user.alerts is not None else []
             
             stats = {
                 'user_id': user_id,
                 'subscription_tier': user.subscription_tier,
-                'subscription_expires': user.subscription_expires.isoformat() if user.subscription_expires else None,
+                'subscription_expires': user.subscription_expires.isoformat() if isinstance(user.subscription_expires, datetime) else None,
                 'active_alerts': len([a for a in alerts if a.is_active]),
                 'total_alerts': len(alerts),
-                'created_at': user.created_at.isoformat(),
-                'is_active': user.is_active
+                'created_at': user.created_at.isoformat() if isinstance(user.created_at, datetime) else None,
+                'is_active': bool(user.is_active)
             }
             
             session.close()
@@ -340,7 +341,7 @@ class AuthService:
                 session.close()
                 return False
             
-            user.is_active = False
+            user.is_active = False  # type: ignore
             session.commit()
             session.close()
             
@@ -375,7 +376,7 @@ class AuthService:
                 }
             
             # Verify current password
-            if not check_password_hash(user.password_hash, current_password):
+            if not check_password_hash(str(user.password_hash), current_password):
                 session.close()
                 return {
                     'success': False,
@@ -383,7 +384,7 @@ class AuthService:
                 }
             
             # Update password
-            user.password_hash = generate_password_hash(new_password)
+            user.password_hash = generate_password_hash(new_password)  # type: ignore
             session.commit()
             session.close()
             
