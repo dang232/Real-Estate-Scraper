@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 from sqlalchemy import create_engine, and_, or_, desc, func
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.types import DateTime
+from sqlalchemy.sql import func
 
 from .models import Base, PropertyListing, User, Alert, ScrapingLog
 
@@ -153,7 +155,7 @@ class DatabaseManager:
                 query = session.query(PropertyListing)
                 
                 # Apply filters
-                if location:
+                if location is not None and location != "":
                     query = query.filter(PropertyListing.location.contains(location))
                 
                 if min_price is not None:
@@ -168,13 +170,13 @@ class DatabaseManager:
                 if max_area is not None:
                     query = query.filter(PropertyListing.area <= max_area)
                 
-                if property_type:
+                if property_type is not None and property_type != "":
                     query = query.filter(PropertyListing.property_type == property_type)
                 
                 if bedrooms is not None:
                     query = query.filter(PropertyListing.bedrooms == bedrooms)
                 
-                if source:
+                if source is not None and source != "":
                     query = query.filter(PropertyListing.source == source)
                 
                 # Order by timestamp (newest first)
@@ -321,9 +323,8 @@ class DatabaseManager:
             with self.get_session() as session:
                 return session.query(Alert).filter(
                     Alert.user_id == user_id,
-                    Alert.is_active == True
+                    Alert.is_active.is_(True)
                 ).all()
-                
         except SQLAlchemyError as e:
             logger.error(f"Error getting user alerts: {e}")
             return []
@@ -340,65 +341,72 @@ class DatabaseManager:
         """
         try:
             with self.get_session() as session:
-                query = session.query(Alert).filter(Alert.is_active == True)
+                query = session.query(Alert).filter(Alert.is_active.is_(True))
                 
                 # Apply alert filters
-                if listing.location:
+                # Check location filter
+                listing_location = getattr(listing, 'location', None)
+                if listing_location not in (None, ""):
                     query = query.filter(
                         or_(
                             Alert.location.is_(None),
-                            Alert.location.contains(listing.location)
+                            Alert.location.contains(listing_location)
                         )
                     )
                 
-                if listing.price:
-                    if listing.price > 0:
-                        query = query.filter(
-                            or_(
-                                Alert.min_price.is_(None),
-                                Alert.min_price <= listing.price
-                            )
+                # Check price filters
+                listing_price = getattr(listing, 'price', None)
+                if listing_price is not None and listing_price > 0:
+                    query = query.filter(
+                        or_(
+                            Alert.min_price.is_(None),
+                            Alert.min_price <= listing_price
                         )
-                        query = query.filter(
-                            or_(
-                                Alert.max_price.is_(None),
-                                Alert.max_price >= listing.price
-                            )
+                    )
+                    query = query.filter(
+                        or_(
+                            Alert.max_price.is_(None),
+                            Alert.max_price >= listing_price
                         )
+                    )
                 
-                if listing.area:
-                    if listing.area > 0:
-                        query = query.filter(
-                            or_(
-                                Alert.min_area.is_(None),
-                                Alert.min_area <= listing.area
-                            )
+                # Check area filters
+                listing_area = getattr(listing, 'area', None)
+                if listing_area is not None and listing_area > 0:
+                    query = query.filter(
+                        or_(
+                            Alert.min_area.is_(None),
+                            Alert.min_area <= listing_area
                         )
-                        query = query.filter(
-                            or_(
-                                Alert.max_area.is_(None),
-                                Alert.max_area >= listing.area
-                            )
+                    )
+                    query = query.filter(
+                        or_(
+                            Alert.max_area.is_(None),
+                            Alert.max_area >= listing_area
                         )
+                    )
                 
-                if listing.property_type:
+                # Check property type filter
+                listing_property_type = getattr(listing, 'property_type', None)
+                if listing_property_type not in (None, ""):
                     query = query.filter(
                         or_(
                             Alert.property_type.is_(None),
-                            Alert.property_type == listing.property_type
+                            Alert.property_type == listing_property_type
                         )
                     )
                 
-                if listing.bedrooms:
+                # Check bedrooms filter
+                listing_bedrooms = getattr(listing, 'bedrooms', None)
+                if listing_bedrooms is not None:
                     query = query.filter(
                         or_(
                             Alert.bedrooms.is_(None),
-                            Alert.bedrooms == listing.bedrooms
+                            Alert.bedrooms == listing_bedrooms
                         )
                     )
                 
                 return query.all()
-                
         except SQLAlchemyError as e:
             logger.error(f"Error checking alerts: {e}")
             return []
@@ -451,12 +459,12 @@ class DatabaseManager:
         try:
             with self.get_session() as session:
                 log = session.query(ScrapingLog).filter(ScrapingLog.id == log_id).first()
-                if log:
-                    log.end_time = datetime.utcnow()
-                    log.listings_found = listings_found
-                    log.listings_new = listings_new
-                    log.status = status
-                    log.error_message = error_message
+                if log is not None:
+                    setattr(log, 'end_time', datetime.utcnow())
+                    setattr(log, 'listings_found', listings_found)
+                    setattr(log, 'listings_new', listings_new)
+                    setattr(log, 'status', status)
+                    setattr(log, 'error_message', error_message)
                     session.commit()
                     return True
                 return False

@@ -9,6 +9,7 @@ import sys
 import os
 import logging
 from datetime import datetime
+import traceback
 
 # Add project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -144,6 +145,7 @@ def test_flask_app():
         
     except Exception as e:
         logger.error(f"❌ Flask app test failed: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return False
 
 def test_scraper_manager():

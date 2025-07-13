@@ -132,8 +132,8 @@ class MigrationManager:
     def _get_subscription_migrations(self) -> List[str]:
         """Get SQL for subscription-related fields"""
         return [
-            "ALTER TABLE users ADD COLUMN subscription_tier VARCHAR(20) DEFAULT 'free'",
-            "ALTER TABLE users ADD COLUMN subscription_expires DATETIME"
+            # These columns are already included in the initial schema
+            # No additional migrations needed for subscription fields
         ]
     
     def get_migration_table_sql(self) -> str:
@@ -237,19 +237,21 @@ class MigrationManager:
             with self.db_manager.get_session() as session:
                 # Check if we already have data
                 result = session.execute(text("SELECT COUNT(*) FROM property_listings"))
-                if result.scalar() > 0:
+                count = result.scalar()
+                if count is not None and count > 0:
                     logger.info("Database already contains data, skipping initial data creation")
                     return True
                 
                 # Create sample user
                 session.execute(
                     text("""
-                        INSERT INTO users (email, name, subscription_tier)
-                        VALUES (:email, :name, :tier)
+                        INSERT INTO users (email, name, password_hash, subscription_tier)
+                        VALUES (:email, :name, :password_hash, :tier)
                     """),
                     {
                         'email': 'demo@example.com',
                         'name': 'Demo User',
+                        'password_hash': 'test',
                         'tier': 'pro'
                     }
                 )

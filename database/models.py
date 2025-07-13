@@ -56,9 +56,9 @@ class PropertyListing(Base):
             'property_type': self.property_type,
             'bedrooms': self.bedrooms,
             'bathrooms': self.bathrooms,
-            'timestamp': self.timestamp.isoformat() if self.timestamp else None,
+            'timestamp': self.timestamp.isoformat() if isinstance(self.timestamp, datetime) else None,
             'source': self.source,
-            'raw_data': json.loads(self.raw_data) if self.raw_data else {},
+            'raw_data': json.loads(self.raw_data) if isinstance(self.raw_data, str) else {},
             'latitude': self.latitude,
             'longitude': self.longitude,
             'is_deal': self.is_deal,
@@ -95,9 +95,9 @@ class User(Base):
             'name': self.name,
             'username': self.username,
             'is_active': self.is_active,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else None,
             'subscription_tier': self.subscription_tier,
-            'subscription_expires': self.subscription_expires.isoformat() if self.subscription_expires else None
+            'subscription_expires': self.subscription_expires.isoformat() if isinstance(self.subscription_expires, datetime) else None
         }
 
 
@@ -140,8 +140,8 @@ class Alert(Base):
             'property_type': self.property_type,
             'bedrooms': self.bedrooms,
             'is_active': self.is_active,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_triggered': self.last_triggered.isoformat() if self.last_triggered else None
+            'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else None,
+            'last_triggered': self.last_triggered.isoformat() if isinstance(self.last_triggered, datetime) else None
         }
 
 
@@ -167,8 +167,8 @@ class ScrapingLog(Base):
         return {
             'id': self.id,
             'scraper_name': self.scraper_name,
-            'start_time': self.start_time.isoformat() if self.start_time else None,
-            'end_time': self.end_time.isoformat() if self.end_time else None,
+            'start_time': self.start_time.isoformat() if isinstance(self.start_time, datetime) else None,
+            'end_time': self.end_time.isoformat() if isinstance(self.end_time, datetime) else None,
             'listings_found': self.listings_found,
             'listings_new': self.listings_new,
             'status': self.status,
