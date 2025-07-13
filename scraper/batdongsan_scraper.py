@@ -21,7 +21,7 @@ class BatDongSanScraper(BaseScraper):
     Scraper for batdongsan.com.vn
     
     This scraper handles the specific structure and selectors
-    used by the BatDongSan website.
+    used by the BatDongSan website with fallback selectors.
     """
     
     def __init__(self):
@@ -31,18 +31,117 @@ class BatDongSanScraper(BaseScraper):
             delay_range=(3, 6)  # Slightly longer delays for this site
         )
         
-        # CSS selectors for BatDongSan
+        # Primary CSS selectors for BatDongSan (updated)
         self.selectors = {
-            'listing_container': '.vip-item, .normal-item',
-            'title': '.vip-item-title a, .normal-item-title a',
-            'price': '.vip-item-price, .normal-item-price',
-            'area': '.vip-item-area, .normal-item-area',
-            'location': '.vip-item-location, .normal-item-location',
-            'image': '.vip-item-image img, .normal-item-image img',
-            'property_type': '.vip-item-type, .normal-item-type',
-            'bedrooms': '.vip-item-bedroom, .normal-item-bedroom',
-            'bathrooms': '.vip-item-bathroom, .normal-item-bathroom',
-            'next_page': '.pagination .next a',
+            'listing_container': [
+                '.vip-item, .normal-item',
+                '.re-item',
+                '.property-item',
+                '.listing-item',
+                '.product-item',
+                '[data-component="property-item"]',
+                '.item',
+                '.card',
+                '.listing-card'
+            ],
+            'title': [
+                '.vip-item-title a, .normal-item-title a',
+                '.re-title a',
+                '.property-title a',
+                '.listing-title a',
+                '.product-title a',
+                'h3 a, h2 a',
+                'a[href*="/ban-"], a[href*="/cho-thue-"]',
+                '.title a',
+                '.name a'
+            ],
+            'price': [
+                '.vip-item-price, .normal-item-price',
+                '.re-price',
+                '.property-price',
+                '.listing-price',
+                '.product-price',
+                '.price',
+                '[class*="price"]',
+                '.cost',
+                '.value'
+            ],
+            'area': [
+                '.vip-item-area, .normal-item-area',
+                '.re-area',
+                '.property-area',
+                '.listing-area',
+                '.product-area',
+                '.area',
+                '[class*="area"]',
+                '.size',
+                '.square'
+            ],
+            'location': [
+                '.vip-item-location, .normal-item-location',
+                '.re-location',
+                '.property-location',
+                '.listing-location',
+                '.product-location',
+                '.location',
+                '[class*="location"]',
+                '.address',
+                '.place'
+            ],
+            'image': [
+                '.vip-item-image img, .normal-item-image img',
+                '.re-image img',
+                '.property-image img',
+                '.listing-image img',
+                '.product-image img',
+                'img[src*="batdongsan"]',
+                '.thumbnail img',
+                '.photo img',
+                'img'
+            ],
+            'property_type': [
+                '.vip-item-type, .normal-item-type',
+                '.re-type',
+                '.property-type',
+                '.listing-type',
+                '.product-type',
+                '.type',
+                '[class*="type"]',
+                '.category',
+                '.kind'
+            ],
+            'bedrooms': [
+                '.vip-item-bedroom, .normal-item-bedroom',
+                '.re-bedroom',
+                '.property-bedroom',
+                '.listing-bedroom',
+                '.product-bedroom',
+                '.bedroom',
+                '[class*="bedroom"]',
+                '.phong-ngu',
+                '.room'
+            ],
+            'bathrooms': [
+                '.vip-item-bathroom, .normal-item-bathroom',
+                '.re-bathroom',
+                '.property-bathroom',
+                '.listing-bathroom',
+                '.product-bathroom',
+                '.bathroom',
+                '[class*="bathroom"]',
+                '.phong-tam',
+                '.wc'
+            ],
+            'next_page': [
+                '.pagination .next a',
+                '.pagination a[rel="next"]',
+                'a[aria-label="Next"]',
+                'a[title="Next"]',
+                '.next a',
+                'a:contains("Trang sau")',
+                '.pagination .page-item:last-child a',
+                'a[href*="page="]'
+            ],
         }
     
     async def scrape_listings(self, max_pages: int = 10) -> List[PropertyListing]:
@@ -58,29 +157,77 @@ class BatDongSanScraper(BaseScraper):
         listings = []
         
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
+            browser = await p.chromium.launch(
+                headless=True,
+                args=[
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-accelerated-2d-canvas',
+                    '--no-first-run',
+                    '--no-zygote',
+                    '--disable-gpu'
+                ]
+            )
             page = await browser.new_page()
             
-            # Set user agent
+            # Set user agent and headers
             await page.set_extra_http_headers({
-                'User-Agent': 'RealEstateScraper/1.0 (+https://github.com/real-estate-scraper)'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'vi-VN,vi;q=0.9,en;q=0.8',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
             })
             
             try:
-                # Start with the main listing page
-                start_url = f"{self.base_url}/ban-nha-dat"
-                await page.goto(start_url, wait_until='networkidle')
-                await self.respectful_delay()
+                # Try multiple starting URLs
+                start_urls = [
+                    f"{self.base_url}/ban-nha-dat",
+                    f"{self.base_url}/ban-can-ho",
+                    f"{self.base_url}/ban-nha-rieng",
+                    f"{self.base_url}/ban-dat-nen"
+                ]
+                
+                for start_url in start_urls:
+                    try:
+                        logger.info(f"Trying to scrape from: {start_url}")
+                        await page.goto(start_url, wait_until='networkidle', timeout=30000)
+                        await self.respectful_delay()
+                        
+                        # Check if page loaded successfully
+                        page_content = await page.content()
+                        if "Just a moment" in page_content or "Cloudflare" in page_content:
+                            logger.warning(f"Cloudflare protection detected on {start_url}")
+                            continue
+                        
+                        # Try to find listings
+                        listing_elements = await self._find_listing_elements(page)
+                        if listing_elements:
+                            logger.info(f"Found {len(listing_elements)} listings on {start_url}")
+                            break
+                        else:
+                            logger.warning(f"No listings found on {start_url}")
+                            continue
+                            
+                    except Exception as e:
+                        logger.error(f"Error accessing {start_url}: {e}")
+                        continue
+                else:
+                    logger.error("Could not access any BatDongSan URLs")
+                    return listings
                 
                 page_num = 1
                 while page_num <= max_pages:
                     logger.info(f"Scraping page {page_num} from BatDongSan")
                     
-                    # Wait for listings to load
-                    await page.wait_for_selector(self.selectors['listing_container'], timeout=10000)
+                    # Wait for listings to load with multiple selector attempts
+                    listing_elements = await self._find_listing_elements(page)
                     
-                    # Get all listing elements
-                    listing_elements = await page.query_selector_all(self.selectors['listing_container'])
+                    if not listing_elements:
+                        logger.warning(f"No listing elements found on page {page_num}")
+                        break
                     
                     # Parse each listing
                     for element in listing_elements:
@@ -93,15 +240,19 @@ class BatDongSanScraper(BaseScraper):
                             continue
                     
                     # Check if there's a next page
-                    next_button = await page.query_selector(self.selectors['next_page'])
+                    next_button = await self._find_next_button(page)
                     if not next_button or page_num >= max_pages:
                         break
                     
                     # Go to next page
-                    await next_button.click()
-                    await page.wait_for_load_state('networkidle')
-                    await self.respectful_delay()
-                    page_num += 1
+                    try:
+                        await next_button.click()
+                        await page.wait_for_load_state('networkidle', timeout=15000)
+                        await self.respectful_delay()
+                        page_num += 1
+                    except Exception as e:
+                        logger.error(f"Error navigating to next page: {e}")
+                        break
                     
             except Exception as e:
                 logger.error(f"Error during BatDongSan scraping: {e}")
@@ -109,11 +260,72 @@ class BatDongSanScraper(BaseScraper):
             finally:
                 await browser.close()
         
+        logger.info(f"Total BatDongSan listings scraped: {len(listings)}")
         return listings
+    
+    async def _find_listing_elements(self, page: Page) -> List[Any]:
+        """Find listing elements using multiple selector strategies"""
+        for selector in self.selectors['listing_container']:
+            try:
+                elements = await page.query_selector_all(selector)
+                if elements:
+                    logger.info(f"Found {len(elements)} listings with selector: {selector}")
+                    return elements
+            except Exception as e:
+                logger.debug(f"Selector {selector} failed: {e}")
+                continue
+        
+        return []
+    
+    async def _find_next_button(self, page: Page) -> Optional[Any]:
+        """Find next page button using multiple selector strategies"""
+        for selector in self.selectors['next_page']:
+            try:
+                button = await page.query_selector(selector)
+                if button:
+                    # Check if button is visible and clickable
+                    is_visible = await button.is_visible()
+                    if is_visible:
+                        return button
+            except Exception as e:
+                logger.debug(f"Next button selector {selector} failed: {e}")
+                continue
+        
+        return None
+    
+    async def _get_element_text(self, element: Any, selectors: List[str]) -> str:
+        """Get text from element using multiple selector strategies"""
+        for selector in selectors:
+            try:
+                sub_element = await element.query_selector(selector)
+                if sub_element:
+                    text = await sub_element.text_content()
+                    if text and text.strip():
+                        return text.strip()
+            except Exception as e:
+                logger.debug(f"Text selector {selector} failed: {e}")
+                continue
+        
+        return ""
+    
+    async def _get_element_attribute(self, element: Any, selectors: List[str], attribute: str) -> str:
+        """Get attribute from element using multiple selector strategies"""
+        for selector in selectors:
+            try:
+                sub_element = await element.query_selector(selector)
+                if sub_element:
+                    value = await sub_element.get_attribute(attribute)
+                    if value:
+                        return value
+            except Exception as e:
+                logger.debug(f"Attribute selector {selector} failed: {e}")
+                continue
+        
+        return ""
     
     async def parse_listing_async(self, page: Page, element: Any) -> Optional[PropertyListing]:
         """
-        Parse a listing element asynchronously
+        Parse a listing element asynchronously with fallback selectors
         
         Args:
             page: Playwright page object
@@ -124,57 +336,54 @@ class BatDongSanScraper(BaseScraper):
         """
         try:
             # Extract title and link
-            title_element = await element.query_selector(self.selectors['title'])
-            title = await title_element.text_content() if title_element else "No title"
-            link = await title_element.get_attribute('href') if title_element else ""
+            title = await self._get_element_text(element, self.selectors['title'])
+            if not title:
+                title = "No title"
+            
+            link = await self._get_element_attribute(element, self.selectors['title'], 'href')
             if link and not link.startswith('http'):
                 link = urljoin(self.base_url, link)
             
             # Extract price
-            price_element = await element.query_selector(self.selectors['price'])
-            price_text = await price_element.text_content() if price_element else "0"
-            price = self.clean_price(price_text)
+            price_text = await self._get_element_text(element, self.selectors['price'])
+            price = self.clean_price(price_text) if price_text else 0.0
             
             # Extract area
-            area_element = await element.query_selector(self.selectors['area'])
-            area_text = await area_element.text_content() if area_element else "0"
-            area = self.clean_area(area_text)
+            area_text = await self._get_element_text(element, self.selectors['area'])
+            area = self.clean_area(area_text) if area_text else 0.0
             
             # Extract location
-            location_element = await element.query_selector(self.selectors['location'])
-            location = await location_element.text_content() if location_element else "Unknown"
+            location = await self._get_element_text(element, self.selectors['location'])
+            if not location:
+                location = "Unknown"
             
             # Extract image
-            image_element = await element.query_selector(self.selectors['image'])
-            image_url = await image_element.get_attribute('src') if image_element else None
+            image_url = await self._get_element_attribute(element, self.selectors['image'], 'src')
             if image_url and not image_url.startswith('http'):
                 image_url = urljoin(self.base_url, image_url)
             
             # Extract property type
-            type_element = await element.query_selector(self.selectors['property_type'])
-            property_type = await type_element.text_content() if type_element else "Unknown"
+            property_type = await self._get_element_text(element, self.selectors['property_type'])
+            if not property_type:
+                property_type = "Unknown"
             
-            # Extract bedrooms (if available)
-            bedroom_element = await element.query_selector(self.selectors['bedrooms'])
+            # Extract bedrooms
+            bedroom_text = await self._get_element_text(element, self.selectors['bedrooms'])
             bedrooms = None
-            if bedroom_element:
-                bedroom_text = await bedroom_element.text_content()
-                if bedroom_text:
-                    import re
-                    numbers = re.findall(r'\d+', bedroom_text)
-                    if numbers:
-                        bedrooms = int(numbers[0])
+            if bedroom_text:
+                import re
+                numbers = re.findall(r'\d+', bedroom_text)
+                if numbers:
+                    bedrooms = int(numbers[0])
             
-            # Extract bathrooms (if available)
-            bathroom_element = await element.query_selector(self.selectors['bathrooms'])
+            # Extract bathrooms
+            bathroom_text = await self._get_element_text(element, self.selectors['bathrooms'])
             bathrooms = None
-            if bathroom_element:
-                bathroom_text = await bathroom_element.text_content()
-                if bathroom_text:
-                    import re
-                    numbers = re.findall(r'\d+', bathroom_text)
-                    if numbers:
-                        bathrooms = int(numbers[0])
+            if bathroom_text:
+                import re
+                numbers = re.findall(r'\d+', bathroom_text)
+                if numbers:
+                    bathrooms = int(numbers[0])
             
             # Calculate price per m²
             price_per_m2 = self.calculate_price_per_m2(price, area)

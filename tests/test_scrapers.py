@@ -179,39 +179,42 @@ class TestChototScraper:
         
         assert scraper.name == "Chotot"
         assert scraper.base_url == "https://chotot.com"
-        assert scraper.delay_range == (2, 4)
-        assert 'listing_container' in scraper.selectors
-        assert 'title' in scraper.selectors
-        assert 'price' in scraper.selectors
+        assert scraper.delay_range == (1, 2)  # Updated for API
+        assert scraper.api_url == "https://gateway.chotot.com/v1/public/ad-listing"
+        assert scraper.regions['hanoi'] == '12000'
+        assert scraper.regions['hochiminh'] == '13000'
+        assert scraper.categories['real_estate'] == '1000'
     
     @pytest.mark.asyncio
     async def test_chotot_scrape_listings_mock(self):
-        """Test Chotot scraping with mocked Playwright"""
+        """Test Chotot scraping with mocked API requests"""
         scraper = ChototScraper()
         
-        # Mock Playwright
-        mock_page = AsyncMock()
-        mock_browser = AsyncMock()
-        mock_playwright = AsyncMock()
+        # Mock requests response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            'ads': [
+                {
+                    'subject': 'Test Property',
+                    'list_id': '12345',
+                    'price': {'value': 1000000000},
+                    'area': 100.0,
+                    'region_name': 'Hanoi',
+                    'area_name': 'Ba Dinh',
+                    'images': [{'url': 'https://example.com/image.jpg'}],
+                    'category_name': 'Căn hộ'
+                }
+            ]
+        }
         
-        # Mock page responses
-        mock_page.query_selector_all.return_value = []
-        mock_page.query_selector.return_value = None
-        mock_page.wait_for_selector.return_value = None
-        mock_page.wait_for_load_state.return_value = None
-        mock_page.goto.return_value = None
-        mock_page.set_extra_http_headers.return_value = None
-        
-        mock_browser.new_page.return_value = mock_page
-        mock_playwright.chromium.launch.return_value = mock_browser
-        
-        with patch('scraper.chotot_scraper.async_playwright') as mock_playwright_context:
-            mock_playwright_context.return_value.__aenter__.return_value = mock_playwright
-            
+        with patch('scraper.chotot_scraper.requests.get', return_value=mock_response):
             listings = await scraper.scrape_listings(max_pages=1)
             
             assert isinstance(listings, list)
-            assert len(listings) == 0  # No listings in mock
+            assert len(listings) == 1  # One listing from mock API
+            assert listings[0].title == 'Test Property'
+            assert listings[0].link == 'https://www.chotot.com/12345'
 
 
 class TestScraperManager:

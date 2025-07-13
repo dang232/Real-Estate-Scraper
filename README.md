@@ -14,13 +14,16 @@ Based on my examination of your codebase, **your plan is excellent and you've al
 - **UI**: Modern Bootstrap-based interface with search, filters, and export functionality
 
 **Core Features Implemented:**
-- ✅ **Multi-site scraping**: BatDongSan and Chotot scrapers with Playwright
+- ✅ **Multi-site scraping**: 
+  - **Chotot**: Updated to use internal API (gateway.chotot.com) with proper region codes and category mapping
+  - **BatDongSan**: Enhanced Playwright scraper with modern selectors (`.product-item`, `.product-title`, etc.) and robust fallback strategies
 - ✅ **Scheduled scraping**: APScheduler with 6-hour intervals
 - ✅ **Data storage**: SQLite database with proper models
 - ✅ **Export functionality**: CSV/Excel export
 - ✅ **Alert system**: User alerts with email notifications
 - ✅ **Web interface**: Search, filter, and view listings
 - ✅ **API endpoints**: Complete REST API for all operations
+- ✅ **Integration testing**: Comprehensive tests for scrapers, database, and API endpoints
 
 ### 🎯 **Your Plan Assessment: EXCELLENT**
 
@@ -60,6 +63,15 @@ Based on my examination of your codebase, **your plan is excellent and you've al
    - **Map integration** (Leaflet.js)
    - **User authentication** (for SaaS)
    - **Payment integration** (Stripe)
+
+3. **Test Updated Scrapers**
+   ```bash
+   # Test the updated scrapers
+   python test_scrapers_simple.py
+   
+   # Run comprehensive integration tests
+   python test_integration.py
+   ```
 
 3. **Production Deployment**
    - **VPS setup** (DigitalOcean/AWS)
